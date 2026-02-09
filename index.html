@@ -130,6 +130,77 @@ function initChart(){
 async function check(url,country,card){
   try{
     const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
+
+    const start=Date.now();
+    const res = await fetch(`/api/check?url=${encodeURIComponent(url)}`, {signal: controller.signal});
+    clearTimeout(timeout);
+    const data = await res.json();
+
+    total++;
+    if(data.status===200) success++;
+    const uptime=((success/total)*100).toFixed(2);
+
+    // Update card
+    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
+    <div class="${data.status===200?'ok':'err'}">${data.status || "ERROR"}<br>${data.statusText || data.message}</div>`;
+
+    // Chart update
+    chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country.name);
+    chart.data.datasets[0].data.push(uptime);
+    chart.update();
+
+    // Log error
+    if(data.status!==200) log(`[${country.name}] ${data.status || "ERROR"} ${data.statusText || data.message}`);
+
+  } catch(e){
+    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
+    <div class="err">Network Error</div>`;
+    log(`[${country.name}] ${e.message}`);
+  }
+}
+
+function start(){
+  const url=document.getElementById("target").value;
+  if(!url) return alert("Enter URL");
+
+  document.getElementById("grid").innerHTML="";
+  success=0; total=0;
+
+  initChart();
+
+  countries.forEach((country,index)=>{
+    const card=document.createElement("div");
+    card.className="card";
+    card.style.textAlign = index%2===0 ? "left":"right";
+    document.getElementById("grid").appendChild(card);
+
+    setInterval(()=>check(url,country,card),5000); // 5 detik interval lebih stabil
+  });
+}
+</script>
+</body>
+</html>}
+
+function initChart(){
+  const ctx=document.getElementById("chart");
+  chart=new Chart(ctx,{
+    type:"line",
+    data:{ labels:[], datasets:[{
+      label:"Uptime %",
+      data:[],
+      borderColor:"#00ffff",
+      backgroundColor:"rgba(0,255,255,0.1)",
+      fill:true,
+      tension:0.3
+    }]},
+    options:{ animation:false, responsive:true, scales:{y:{min:0,max:100}}}
+  });
+}
+
+async function check(url,country,card){
+  try{
+    const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
     const start=Date.now();
