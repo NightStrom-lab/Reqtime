@@ -4,195 +4,128 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌍 Global Uptime Monitor</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-body { margin:0; padding:20px; font-family:Arial, sans-serif; background:#0f0f0f; color:#eee; }
-h1 { text-align:center; font-size:32px; margin-bottom:20px; }
-.container { max-width:1400px; margin:auto; }
-input { width:70%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff; border-radius:6px; }
-button { padding:12px 20px; margin-left:10px; background:#00ffff; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }
-.status-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:25px; }
-.card { background:#1a1a1a; padding:15px; border-radius:8px; border:1px solid #333; display:flex; align-items:center; justify-content:space-between; }
-.country-name { display:flex; align-items:center; gap:6px; }
-.country-name img { width:24px; height:16px; border:1px solid #333; }
-.ok { color:#00ff88; }
-.err { color:#ff4444; }
-canvas { margin-top:30px; }
-#map { height:500px; margin-top:30px; border-radius:8px; }
-.log { margin-top:25px; background:#111; padding:15px; height:200px; overflow:auto; border-radius:8px; font-size:13px; }
+  body { background:#121212; color:#fff; font-family: Arial, sans-serif; margin:0; padding:0;}
+  h1 { text-align:center; color:#0ff; margin:20px 0;}
+  #target { width:80%; padding:10px; font-size:16px; margin:0 auto; display:block; border-radius:5px; border:none;}
+  #startBtn { display:block; margin:10px auto; padding:10px 20px; font-size:16px; background:#0ff; color:#121212; border:none; border-radius:5px; cursor:pointer;}
+  #grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding:10px;}
+  .card { background:#1e1e1e; padding:10px; border-radius:5px; min-height:60px;}
+  .country-name { font-weight:bold; display:flex; align-items:center; gap:5px;}
+  .country-name img { width:20px; height:14px;}
+  .ok { color:#00ff88; }
+  .err { color:#ff4444; }
+  canvas { display:block; margin:20px auto; background:#1e1e1e; border-radius:10px; padding:10px;}
 </style>
 </head>
 <body>
-<div class="container">
-<h1>🌍 Global Uptime Monitor</h1>
-<input id="target" placeholder="https://example.com">
-<button onclick="start()">Start</button>
-<div class="status-grid" id="grid"></div>
-<canvas id="chart"></canvas>
-<div id="map"></div>
-<div class="log" id="log"></div>
-</div>
 
+<h1>🌍 Global Uptime Monitor</h1>
+<input id="target" placeholder="Enter URL e.g https://example.com" />
+<button id="startBtn">Start</button>
+
+<div id="grid"></div>
+<canvas id="chart" width="800" height="400"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const countries=[
-  {name:"Indonesia",flag:"https://flagcdn.com/id.svg"},
-  {name:"India",flag:"https://flagcdn.com/in.svg"},
-  {name:"China",flag:"https://flagcdn.com/cn.svg"},
-  {name:"Japan",flag:"https://flagcdn.com/jp.svg"},
-  {name:"Korea",flag:"https://flagcdn.com/kr.svg"},
-  {name:"Singapore",flag:"https://flagcdn.com/sg.svg"},
-  {name:"USA",flag:"https://flagcdn.com/us.svg"},
-  {name:"UK",flag:"https://flagcdn.com/gb.svg"},
-  {name:"Germany",flag:"https://flagcdn.com/de.svg"},
-  {name:"France",flag:"https://flagcdn.com/fr.svg"},
-  {name:"Australia",flag:"https://flagcdn.com/au.svg"},
-  {name:"Brazil",flag:"https://flagcdn.com/br.svg"},
-  {name:"Canada",flag:"https://flagcdn.com/ca.svg"},
-  {name:"Russia",flag:"https://flagcdn.com/ru.svg"},
-  {name:"Netherlands",flag:"https://flagcdn.com/nl.svg"},
-  {name:"Sweden",flag:"https://flagcdn.com/se.svg"},
-  {name:"UAE",flag:"https://flagcdn.com/ae.svg"},
-  {name:"Malaysia",flag:"https://flagcdn.com/my.svg"},
-  {name:"Thailand",flag:"https://flagcdn.com/th.svg"},
-  {name:"Philippines",flag:"https://flagcdn.com/ph.svg"}
+const countries = [
+  {name:"Indonesia", flag:"https://flagcdn.com/id.svg"},
+  {name:"India", flag:"https://flagcdn.com/in.svg"},
+  {name:"China", flag:"https://flagcdn.com/cn.svg"},
+  {name:"Japan", flag:"https://flagcdn.com/jp.svg"},
+  {name:"Korea", flag:"https://flagcdn.com/kr.svg"},
+  {name:"Singapore", flag:"https://flagcdn.com/sg.svg"},
+  {name:"USA", flag:"https://flagcdn.com/us.svg"},
+  {name:"UK", flag:"https://flagcdn.com/gb.svg"}
 ];
 
-const geoCoords={
-  "Indonesia":[-2.5489,118.0149],"India":[20.5937,78.9629],"China":[35.8617,104.1954],
-  "Japan":[36.2048,138.2529],"Korea":[35.9078,127.7669],"Singapore":[1.3521,103.8198],
-  "USA":[37.0902,-95.7129],"UK":[55.3781,-3.4360],"Germany":[51.1657,10.4515],
-  "France":[46.2276,2.2137],"Australia":[-25.2744,133.7751],"Brazil":[-14.2350,-51.9250],
-  "Canada":[56.1304,-106.3468],"Russia":[61.5240,105.3188],"Netherlands":[52.1326,5.2913],
-  "Sweden":[60.1282,18.6435],"UAE":[23.4241,53.8478],"Malaysia":[4.2105,101.9758],
-  "Thailand":[15.8700,100.9925],"Philippines":[12.8797,121.7740]
-};
-
-let chart, success=0, total=0, countryMarkers={};
-
-function log(msg){
-  const logBox=document.getElementById("log");
-  logBox.innerHTML+=msg+"<br>";
-  logBox.scrollTop=logBox.scrollHeight;
-}
+let chart, success=0, total=0;
 
 function initChart(){
-  const ctx=document.getElementById("chart");
-  chart=new Chart(ctx,{
-    type:"line",
-    data:{labels:[],datasets:[{
-      label:"Uptime %",
-      data:[],
-      borderColor:"#00ffff",
-      backgroundColor:"rgba(0,255,255,0.1)",
-      fill:true,
-      tension:0.3
-    }]},
-    options:{animation:false,responsive:true,scales:{y:{min:0,max:100}}}
+  const ctx = document.getElementById("chart").getContext("2d");
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: "Uptime %",
+        data: [],
+        borderColor: "#0ff",
+        backgroundColor: "rgba(0,255,255,0.1)",
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      animation: false,
+      responsive: true,
+      scales: { y: { min:0, max:100 } }
+    }
   });
 }
 
-// Init Leaflet map
-let map = L.map('map').setView([20,0],2);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:5, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
-
-// Setup marker per country
-countries.forEach(c=>{
-  const marker = L.circleMarker(geoCoords[c.name],{
-    color:"#888", fillColor:"#888", fillOpacity:0.7, radius:12
-  }).addTo(map);
-  marker.bindPopup(`${c.name} - Status belum dicek`);
-  countryMarkers[c.name]=marker;
-});
-
-async function check(url,country,card){
+async function check(url, country, card){
   try{
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),15000);
-    const start=Date.now();
-    const res=await fetch(`/api/check?url=${encodeURIComponent(url)}`,{signal:controller.signal});
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    const start = Date.now();
+
+    const res = await fetch(`/api/check?url=${encodeURIComponent(url)}`, {signal: controller.signal});
     clearTimeout(timeout);
-    const data=await res.json();
+    const data = await res.json();
 
-    total++; if(data.status===200) success++;
-    const uptime=((success/total)*100).toFixed(2);
+    total++;
+    if(data.status === 200) success++;
+    const uptime = ((success/total)*100).toFixed(2);
 
-    // Update card
-    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
-    <div class="${data.status===200?'ok':'err'}">${data.status || "ERROR"}<br>${data.statusText || data.message}</div>`;
+    card.innerHTML = `
+      <div class="country-name"><img src="${country.flag}">${country.name}</div>
+      <div class="${data.status===200?'ok':'err'}">
+        ${data.status||"ERROR"}<br>${data.statusText||data.message}
+      </div>
+    `;
 
-    chart.data.labels.push(new Date().toLocaleTimeString()+" - "+country.name);
-    chart.data.datasets[0].data.push(uptime);
-    chart.update();
-
-    if(data.status!==200) log(`[${country.name}] ${data.status || "ERROR"} ${data.statusText || data.message}`);
-
-    // Update map marker
-    let color="#00ff88";
-    if(data.status===503||data.status===429) color="#ffcc00";
-    if(data.status!==200) color="#ff4444";
-    const marker=countryMarkers[country.name];
-    marker.setStyle({color:color,fillColor:color});
-    marker.setPopupContent(`${country.name} - ${data.status || "ERROR"} ${data.statusText || data.message}`);
-
-  } catch(e){
-    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div><div class="err">Network Error</div>`;
-    log(`[${country.name}] ${e.message}`);
-    const marker=countryMarkers[country.name];
-    marker.setStyle({color:"#ff4444",fillColor:"#ff4444"});
-    marker.setPopupContent(`${country.name} - Network Error`);
-  }
-}
-
-function start(){
-  const url=document.getElementById("target").value;
-  if(!url) return alert("Enter URL");
-  document.getElementById("grid").innerHTML="";
-  success=0; total=0;
-  initChart();
-
-  countries.forEach((country,index)=>{
-    const card=document.createElement("div");
-    card.className="card";
-    card.style.textAlign=index%2===0?"left":"right";
-    document.getElementById("grid").appendChild(card);
-
-    setInterval(()=>check(url,country,card),5000);
-  });
-}
-</script>
-</body>
-</html>
     chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country.name);
     chart.data.datasets[0].data.push(uptime);
     chart.update();
 
+    if(data.status !== 200) console.log(`[${country.name}] ${data.status||"ERROR"} ${data.statusText||data.message}`);
   } catch(e){
-    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
-    <div class="err">Network Error</div>`;
-    log(`[${country.name}] ${e.message}`);
+    card.innerHTML = `
+      <div class="country-name"><img src="${country.flag}">${country.name}</div>
+      <div class="err">Network Error</div>
+    `;
+    console.log(`[${country.name}] ${e.message}`);
   }
 }
 
 function start(){
-  const url=document.getElementById("target").value;
+  const url = document.getElementById("target").value;
   if(!url) return alert("Enter URL");
 
   document.getElementById("grid").innerHTML="";
-  success=0; total=0;
-
+  success=0;
+  total=0;
   initChart();
 
   countries.forEach((country,index)=>{
     const card=document.createElement("div");
     card.className="card";
-    card.style.textAlign = index%2===0 ? "left":"right";
+    card.style.textAlign = index%2===0?"left":"right";
     document.getElementById("grid").appendChild(card);
 
-    setInterval(()=>check(url,country,card),5000); // 5 detik interval lebih stabil
+    async function loopCheck(){
+      await check(url,country,card);
+      setTimeout(loopCheck,5000);
+    }
+
+    loopCheck();
   });
 }
+
+document.getElementById("startBtn").addEventListener("click", start);
 </script>
+
 </body>
 </html>
