@@ -10,12 +10,12 @@
   #target { width:80%; padding:10px; font-size:16px; margin:0 auto; display:block; border-radius:5px; border:none;}
   #startBtn { display:block; margin:10px auto; padding:10px 20px; font-size:16px; background:#0ff; color:#121212; border:none; border-radius:5px; cursor:pointer;}
   #grid { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding:10px;}
-  .card { background:#1e1e1e; padding:10px; border-radius:5px; min-height:60px;}
-  .country-name { font-weight:bold; display:flex; align-items:center; gap:5px;}
-  .country-name img { width:20px; height:14px;}
+  .card { background:#1e1e1e; padding:10px; border-radius:5px; min-height:80px; font-size:14px;}
+  .country-name { font-weight:bold; display:flex; align-items:center; gap:5px; font-size:16px;}
+  .country-name img { width:25px; height:15px;}
   .ok { color:#00ff88; }
   .err { color:#ff4444; }
-  canvas { display:block; margin:20px auto; background:#1e1e1e; border-radius:10px; padding:10px;}
+  canvas { display:block; margin:20px auto; background:#1e1e1e; border-radius:10px; padding:10px; max-width:95%;}
 </style>
 </head>
 <body>
@@ -25,6 +25,7 @@
 <button id="startBtn">Start</button>
 
 <div id="grid"></div>
+
 <canvas id="chart" width="800" height="400"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -37,7 +38,19 @@ const countries = [
   {name:"Korea", flag:"https://flagcdn.com/kr.svg"},
   {name:"Singapore", flag:"https://flagcdn.com/sg.svg"},
   {name:"USA", flag:"https://flagcdn.com/us.svg"},
-  {name:"UK", flag:"https://flagcdn.com/gb.svg"}
+  {name:"UK", flag:"https://flagcdn.com/gb.svg"},
+  {name:"Germany", flag:"https://flagcdn.com/de.svg"},
+  {name:"France", flag:"https://flagcdn.com/fr.svg"},
+  {name:"Australia", flag:"https://flagcdn.com/au.svg"},
+  {name:"Brazil", flag:"https://flagcdn.com/br.svg"},
+  {name:"Canada", flag:"https://flagcdn.com/ca.svg"},
+  {name:"Russia", flag:"https://flagcdn.com/ru.svg"},
+  {name:"Netherlands", flag:"https://flagcdn.com/nl.svg"},
+  {name:"Sweden", flag:"https://flagcdn.com/se.svg"},
+  {name:"UAE", flag:"https://flagcdn.com/ae.svg"},
+  {name:"Malaysia", flag:"https://flagcdn.com/my.svg"},
+  {name:"Thailand", flag:"https://flagcdn.com/th.svg"},
+  {name:"Philippines", flag:"https://flagcdn.com/ph.svg"}
 ];
 
 let chart, success=0, total=0;
@@ -94,7 +107,7 @@ async function check(url, country, card){
   } catch(e){
     card.innerHTML = `
       <div class="country-name"><img src="${country.flag}">${country.name}</div>
-      <div class="err">Network Error</div>
+      <div class="err">Network Error / Broken Pipe</div>
     `;
     console.log(`[${country.name}] ${e.message}`);
   }
