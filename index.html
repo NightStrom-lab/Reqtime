@@ -17,6 +17,31 @@
     color:#0ff;
     margin:20px 0;
   }
+  #controls {
+    width:90%;
+    max-width:600px;
+    margin:0 auto 20px auto;
+    display:flex;
+    gap:10px;
+  }
+  #target {
+    flex:1;
+    padding:10px;
+    font-size:16px;
+    border-radius:5px;
+    border:2px solid #222; /* pinggiran gelap */
+    background:#333;      /* abu */
+    color:#fff;           /* teks putih */
+  }
+  #startBtn {
+    padding:10px 20px;
+    font-size:16px;
+    border:none;
+    border-radius:5px;
+    background:#0ff;
+    color:#121212;
+    cursor:pointer;
+  }
   #grid {
     display:grid;
     grid-template-columns: 1fr 1fr;
@@ -45,6 +70,11 @@
 <body>
 
 <h1>🌍 Global Uptime Monitor</h1>
+
+<div id="controls">
+  <input id="target" placeholder="Enter URL e.g https://example.com" />
+  <button id="startBtn">Start</button>
+</div>
 
 <div id="grid"></div>
 
@@ -101,7 +131,9 @@ async function check(url, country, card){
 }
 
 function startMonitoring(){
-  const url = "https://example.com"; // lo bisa ganti target URL di sini
+  const url = document.getElementById("target").value;
+  if(!url) return alert("Enter a URL first");
+
   document.getElementById("grid").innerHTML = "";
 
   countries.forEach((country,index)=>{
@@ -119,7 +151,7 @@ function startMonitoring(){
   });
 }
 
-window.onload = startMonitoring;
+document.getElementById("startBtn").addEventListener("click", startMonitoring);
 </script>
 
 </body>
