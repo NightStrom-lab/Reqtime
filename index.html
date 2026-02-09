@@ -5,80 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>🌍 Global Uptime Monitor</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-body {
-  margin:0;
-  padding:20px;
-  font-family:Arial, sans-serif;
-  background:#0f0f0f;
-  color:#eee;
-}
+body { margin:0; padding:20px; font-family:Arial, sans-serif; background:#0f0f0f; color:#eee; }
 h1 { text-align:center; font-size:32px; margin-bottom:20px; }
 .container { max-width:1400px; margin:auto; }
-input {
-  width:70%;
-  padding:12px;
-  background:#1a1a1a;
-  border:1px solid #333;
-  color:#fff;
-  border-radius:6px;
-}
-button {
-  padding:12px 20px;
-  margin-left:10px;
-  background:#00ffff;
-  border:none;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
-}
-.status-grid {
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:12px;
-  margin-top:25px;
-}
-.card {
-  background:#1a1a1a;
-  padding:15px;
-  border-radius:8px;
-  border:1px solid #333;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
+input { width:70%; padding:12px; background:#1a1a1a; border:1px solid #333; color:#fff; border-radius:6px; }
+button { padding:12px 20px; margin-left:10px; background:#00ffff; border:none; border-radius:6px; font-weight:bold; cursor:pointer; }
+.status-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:25px; }
+.card { background:#1a1a1a; padding:15px; border-radius:8px; border:1px solid #333; display:flex; align-items:center; justify-content:space-between; }
 .country-name { display:flex; align-items:center; gap:6px; }
 .country-name img { width:24px; height:16px; border:1px solid #333; }
 .ok { color:#00ff88; }
 .err { color:#ff4444; }
 canvas { margin-top:30px; }
-.log {
-  margin-top:25px;
-  background:#111;
-  padding:15px;
-  height:200px;
-  overflow:auto;
-  border-radius:8px;
-  font-size:13px;
-}
+#map { height:500px; margin-top:30px; border-radius:8px; }
+.log { margin-top:25px; background:#111; padding:15px; height:200px; overflow:auto; border-radius:8px; font-size:13px; }
 </style>
 </head>
 <body>
 <div class="container">
 <h1>🌍 Global Uptime Monitor</h1>
-
 <input id="target" placeholder="https://example.com">
 <button onclick="start()">Start</button>
-
 <div class="status-grid" id="grid"></div>
-
 <canvas id="chart"></canvas>
-
+<div id="map"></div>
 <div class="log" id="log"></div>
 </div>
 
 <script>
-const countries = [
+const countries=[
   {name:"Indonesia",flag:"https://flagcdn.com/id.svg"},
   {name:"India",flag:"https://flagcdn.com/in.svg"},
   {name:"China",flag:"https://flagcdn.com/cn.svg"},
@@ -101,9 +59,17 @@ const countries = [
   {name:"Philippines",flag:"https://flagcdn.com/ph.svg"}
 ];
 
-let chart;
-let success=0;
-let total=0;
+const geoCoords={
+  "Indonesia":[-2.5489,118.0149],"India":[20.5937,78.9629],"China":[35.8617,104.1954],
+  "Japan":[36.2048,138.2529],"Korea":[35.9078,127.7669],"Singapore":[1.3521,103.8198],
+  "USA":[37.0902,-95.7129],"UK":[55.3781,-3.4360],"Germany":[51.1657,10.4515],
+  "France":[46.2276,2.2137],"Australia":[-25.2744,133.7751],"Brazil":[-14.2350,-51.9250],
+  "Canada":[56.1304,-106.3468],"Russia":[61.5240,105.3188],"Netherlands":[52.1326,5.2913],
+  "Sweden":[60.1282,18.6435],"UAE":[23.4241,53.8478],"Malaysia":[4.2105,101.9758],
+  "Thailand":[15.8700,100.9925],"Philippines":[12.8797,121.7740]
+};
+
+let chart, success=0, total=0, countryMarkers={};
 
 function log(msg){
   const logBox=document.getElementById("log");
@@ -115,7 +81,7 @@ function initChart(){
   const ctx=document.getElementById("chart");
   chart=new Chart(ctx,{
     type:"line",
-    data:{ labels:[], datasets:[{
+    data:{labels:[],datasets:[{
       label:"Uptime %",
       data:[],
       borderColor:"#00ffff",
@@ -123,104 +89,81 @@ function initChart(){
       fill:true,
       tension:0.3
     }]},
-    options:{ animation:false, responsive:true, scales:{y:{min:0,max:100}}}
+    options:{animation:false,responsive:true,scales:{y:{min:0,max:100}}}
   });
 }
 
+// Init Leaflet map
+let map = L.map('map').setView([20,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:5, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+
+// Setup marker per country
+countries.forEach(c=>{
+  const marker = L.circleMarker(geoCoords[c.name],{
+    color:"#888", fillColor:"#888", fillOpacity:0.7, radius:12
+  }).addTo(map);
+  marker.bindPopup(`${c.name} - Status belum dicek`);
+  countryMarkers[c.name]=marker;
+});
+
 async function check(url,country,card){
   try{
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
-
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
     const start=Date.now();
-    const res = await fetch(`/api/check?url=${encodeURIComponent(url)}`, {signal: controller.signal});
+    const res=await fetch(`/api/check?url=${encodeURIComponent(url)}`,{signal:controller.signal});
     clearTimeout(timeout);
-    const data = await res.json();
+    const data=await res.json();
 
-    total++;
-    if(data.status===200) success++;
+    total++; if(data.status===200) success++;
     const uptime=((success/total)*100).toFixed(2);
 
     // Update card
     card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
     <div class="${data.status===200?'ok':'err'}">${data.status || "ERROR"}<br>${data.statusText || data.message}</div>`;
 
-    // Chart update
-    chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country.name);
+    chart.data.labels.push(new Date().toLocaleTimeString()+" - "+country.name);
     chart.data.datasets[0].data.push(uptime);
     chart.update();
 
-    // Log error
     if(data.status!==200) log(`[${country.name}] ${data.status || "ERROR"} ${data.statusText || data.message}`);
 
+    // Update map marker
+    let color="#00ff88";
+    if(data.status===503||data.status===429) color="#ffcc00";
+    if(data.status!==200) color="#ff4444";
+    const marker=countryMarkers[country.name];
+    marker.setStyle({color:color,fillColor:color});
+    marker.setPopupContent(`${country.name} - ${data.status || "ERROR"} ${data.statusText || data.message}`);
+
   } catch(e){
-    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
-    <div class="err">Network Error</div>`;
+    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div><div class="err">Network Error</div>`;
     log(`[${country.name}] ${e.message}`);
+    const marker=countryMarkers[country.name];
+    marker.setStyle({color:"#ff4444",fillColor:"#ff4444"});
+    marker.setPopupContent(`${country.name} - Network Error`);
   }
 }
 
 function start(){
   const url=document.getElementById("target").value;
   if(!url) return alert("Enter URL");
-
   document.getElementById("grid").innerHTML="";
   success=0; total=0;
-
   initChart();
 
   countries.forEach((country,index)=>{
     const card=document.createElement("div");
     card.className="card";
-    card.style.textAlign = index%2===0 ? "left":"right";
+    card.style.textAlign=index%2===0?"left":"right";
     document.getElementById("grid").appendChild(card);
 
-    setInterval(()=>check(url,country,card),5000); // 5 detik interval lebih stabil
+    setInterval(()=>check(url,country,card),5000);
   });
 }
 </script>
 </body>
-</html>}
-
-function initChart(){
-  const ctx=document.getElementById("chart");
-  chart=new Chart(ctx,{
-    type:"line",
-    data:{ labels:[], datasets:[{
-      label:"Uptime %",
-      data:[],
-      borderColor:"#00ffff",
-      backgroundColor:"rgba(0,255,255,0.1)",
-      fill:true,
-      tension:0.3
-    }]},
-    options:{ animation:false, responsive:true, scales:{y:{min:0,max:100}}}
-  });
-}
-
-async function check(url,country,card){
-  try{
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const start=Date.now();
-    const res = await fetch(`/api/check?url=${encodeURIComponent(url)}`, {signal: controller.signal});
-    clearTimeout(timeout);
-    const data = await res.json();
-
-    total++;
-    if(data.status===200) success++;
-    const uptime=((success/total)*100).toFixed(2);
-
-    if(data.status===200){
-      card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
-      <div class="ok">200 OK<br>${data.responseTime} ms</div>`;
-    } else {
-      card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
-      <div class="err">${data.status || "ERROR"}<br>${data.statusText || data.message}</div>`;
-      log(`[${country.name}] ERROR: ${data.status || "ERROR"} ${data.statusText || data.message}`);
-    }
-
+</html>
     chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country.name);
     chart.data.datasets[0].data.push(uptime);
     chart.update();
