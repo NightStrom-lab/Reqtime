@@ -8,10 +8,11 @@ export default async function handler(req, res){
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000); // 15 detik
     const start = Date.now();
+
     const response = await fetch(url, {signal: controller.signal});
     clearTimeout(timeout);
-    const responseTime = Date.now() - start;
 
+    const responseTime = Date.now() - start;
     res.status(200).json({
       status: response.status,
       statusText: response.statusText,
