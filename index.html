@@ -13,15 +13,8 @@ body {
   background:#0f0f0f;
   color:#eee;
 }
-h1 {
-  text-align:center;
-  font-size:32px;
-  margin-bottom:20px;
-}
-.container {
-  max-width:1400px;
-  margin:auto;
-}
+h1 { text-align:center; font-size:32px; margin-bottom:20px; }
+.container { max-width:1400px; margin:auto; }
 input {
   width:70%;
   padding:12px;
@@ -50,7 +43,12 @@ button {
   padding:15px;
   border-radius:8px;
   border:1px solid #333;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
 }
+.country-name { display:flex; align-items:center; gap:6px; }
+.country-name img { width:24px; height:16px; border:1px solid #333; }
 .ok { color:#00ff88; }
 .err { color:#ff4444; }
 canvas { margin-top:30px; }
@@ -81,10 +79,26 @@ canvas { margin-top:30px; }
 
 <script>
 const countries = [
-"Indonesia","India","China","Japan","Korea","Singapore",
-"USA","UK","Germany","France","Australia","Brazil",
-"Canada","Russia","Netherlands","Sweden","UAE",
-"Malaysia","Thailand","Philippines"
+  {name:"Indonesia",flag:"https://flagcdn.com/id.svg"},
+  {name:"India",flag:"https://flagcdn.com/in.svg"},
+  {name:"China",flag:"https://flagcdn.com/cn.svg"},
+  {name:"Japan",flag:"https://flagcdn.com/jp.svg"},
+  {name:"Korea",flag:"https://flagcdn.com/kr.svg"},
+  {name:"Singapore",flag:"https://flagcdn.com/sg.svg"},
+  {name:"USA",flag:"https://flagcdn.com/us.svg"},
+  {name:"UK",flag:"https://flagcdn.com/gb.svg"},
+  {name:"Germany",flag:"https://flagcdn.com/de.svg"},
+  {name:"France",flag:"https://flagcdn.com/fr.svg"},
+  {name:"Australia",flag:"https://flagcdn.com/au.svg"},
+  {name:"Brazil",flag:"https://flagcdn.com/br.svg"},
+  {name:"Canada",flag:"https://flagcdn.com/ca.svg"},
+  {name:"Russia",flag:"https://flagcdn.com/ru.svg"},
+  {name:"Netherlands",flag:"https://flagcdn.com/nl.svg"},
+  {name:"Sweden",flag:"https://flagcdn.com/se.svg"},
+  {name:"UAE",flag:"https://flagcdn.com/ae.svg"},
+  {name:"Malaysia",flag:"https://flagcdn.com/my.svg"},
+  {name:"Thailand",flag:"https://flagcdn.com/th.svg"},
+  {name:"Philippines",flag:"https://flagcdn.com/ph.svg"}
 ];
 
 let chart;
@@ -101,50 +115,49 @@ function initChart(){
   const ctx=document.getElementById("chart");
   chart=new Chart(ctx,{
     type:"line",
-    data:{
-      labels:[],
-      datasets:[{
-        label:"Uptime %",
-        data:[],
-        borderColor:"#00ffff",
-        backgroundColor:"rgba(0,255,255,0.1)",
-        fill:true,
-        tension:0.3
-      }]
-    },
-    options:{
-      animation:false,
-      responsive:true,
-      scales:{
-        y:{ min:0, max:100 }
-      }
-    }
+    data:{ labels:[], datasets:[{
+      label:"Uptime %",
+      data:[],
+      borderColor:"#00ffff",
+      backgroundColor:"rgba(0,255,255,0.1)",
+      fill:true,
+      tension:0.3
+    }]},
+    options:{ animation:false, responsive:true, scales:{y:{min:0,max:100}}}
   });
 }
 
 async function check(url,country,card){
   try{
-    const res=await fetch(`/api/check?url=${encodeURIComponent(url)}`);
-    const data=await res.json();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    const start=Date.now();
+    const res = await fetch(`/api/check?url=${encodeURIComponent(url)}`, {signal: controller.signal});
+    clearTimeout(timeout);
+    const data = await res.json();
+
     total++;
     if(data.status===200) success++;
     const uptime=((success/total)*100).toFixed(2);
 
     if(data.status===200){
-      card.innerHTML=`<b>${country}</b><br><span class="ok">200 OK</span><br>${data.responseTime} ms`;
+      card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
+      <div class="ok">200 OK<br>${data.responseTime} ms</div>`;
     } else {
-      card.innerHTML=`<b>${country}</b><br><span class="err">${data.status}</span><br>${data.statusText||data.message}`;
-      log(`[${country}] ERROR: ${data.status} ${data.statusText||data.message}`);
+      card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
+      <div class="err">${data.status || "ERROR"}<br>${data.statusText || data.message}</div>`;
+      log(`[${country.name}] ERROR: ${data.status || "ERROR"} ${data.statusText || data.message}`);
     }
 
-    // Data chart tanpa batas
-    chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country);
+    chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country.name);
     chart.data.datasets[0].data.push(uptime);
     chart.update();
 
   } catch(e){
-    card.innerHTML=`<b>${country}</b><br><span class="err">Network Error</span>`;
-    log(`[${country}] ${e.message}`);
+    card.innerHTML=`<div class="country-name"><img src="${country.flag}">${country.name}</div>
+    <div class="err">Network Error</div>`;
+    log(`[${country.name}] ${e.message}`);
   }
 }
 
@@ -153,19 +166,17 @@ function start(){
   if(!url) return alert("Enter URL");
 
   document.getElementById("grid").innerHTML="";
-  success=0;
-  total=0;
+  success=0; total=0;
 
   initChart();
 
-  countries.forEach((country, index)=>{
+  countries.forEach((country,index)=>{
     const card=document.createElement("div");
     card.className="card";
-    if(index%2==0) card.style.textAlign="left";
-    else card.style.textAlign="right";
+    card.style.textAlign = index%2===0 ? "left":"right";
     document.getElementById("grid").appendChild(card);
 
-    setInterval(()=>check(url,country,card),1000);
+    setInterval(()=>check(url,country,card),5000); // 5 detik interval lebih stabil
   });
 }
 </script>
