@@ -1,26 +1,24 @@
-export default async function handler(req, res){
-  const url = req.query.url;
-  if(!url) return res.status(400).json({status:400, message:"URL required"});
+function start() {
+  const url = document.getElementById("target").value;
+  if(!url) return alert("Enter URL");
 
-  try{
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 detik timeout
-    const start = Date.now();
+  document.getElementById("grid").innerHTML = "";
+  success = 0;
+  total = 0;
+  initChart();
 
-    const response = await fetch(url, {signal: controller.signal});
-    clearTimeout(timeout);
+  countries.forEach((country, index) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.textAlign = index % 2 === 0 ? "left" : "right";
+    document.getElementById("grid").appendChild(card);
 
-    const responseTime = Date.now() - start;
-    res.status(200).json({
-      status: response.status,
-      statusText: response.statusText,
-      responseTime
-    });
+    // loop check tanpa menumpuk
+    async function loopCheck() {
+      await check(url, country, card);
+      setTimeout(loopCheck, 5000); // tunggu 5 detik lalu cek lagi
+    }
 
-  } catch(e){
-    res.status(500).json({
-      status:500,
-      message:e.message
-    });
-  }
+    loopCheck(); // start loop pertama
+  });
 }
