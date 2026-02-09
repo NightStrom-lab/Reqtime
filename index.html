@@ -41,7 +41,7 @@ button {
 }
 .status-grid {
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  grid-template-columns:repeat(2,1fr);
   gap:12px;
   margin-top:25px;
 }
@@ -113,7 +113,11 @@ function initChart(){
       }]
     },
     options:{
-      scales:{ y:{ min:0, max:100 } }
+      animation:false,
+      responsive:true,
+      scales:{
+        y:{ min:0, max:100 }
+      }
     }
   });
 }
@@ -133,13 +137,11 @@ async function check(url,country,card){
       log(`[${country}] ERROR: ${data.status} ${data.statusText||data.message}`);
     }
 
-    chart.data.labels.push(new Date().toLocaleTimeString());
+    // Data chart tanpa batas
+    chart.data.labels.push(new Date().toLocaleTimeString() + " - " + country);
     chart.data.datasets[0].data.push(uptime);
-    if(chart.data.labels.length>30){
-      chart.data.labels.shift();
-      chart.data.datasets[0].data.shift();
-    }
     chart.update();
+
   } catch(e){
     card.innerHTML=`<b>${country}</b><br><span class="err">Network Error</span>`;
     log(`[${country}] ${e.message}`);
@@ -156,9 +158,11 @@ function start(){
 
   initChart();
 
-  countries.forEach(country=>{
+  countries.forEach((country, index)=>{
     const card=document.createElement("div");
     card.className="card";
+    if(index%2==0) card.style.textAlign="left";
+    else card.style.textAlign="right";
     document.getElementById("grid").appendChild(card);
 
     setInterval(()=>check(url,country,card),1000);
